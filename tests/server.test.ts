@@ -60,6 +60,18 @@ describe("state & settings", () => {
     expect(r.body.settings.reduce_motion).toBe("1");
     r = await call("/api/settings", {
       method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ theme: "light" }),
+    });
+    expect(r.status).toBe(200);
+    expect(r.body.settings.theme).toBe("light");
+    r = await call("/api/settings", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ theme: "neon" }),
+    });
+    expect(r.status).toBe(200);
+    expect(r.body.settings.theme).toBe("auto");
+    r = await call("/api/settings", {
+      method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ milton_url: "notaurl" }),
     });
     expect(r.status).toBe(400);

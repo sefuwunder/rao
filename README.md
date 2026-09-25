@@ -79,4 +79,9 @@ node tests/ui.test.js         # render: phases, gating, escaping, offline states
 node tests/regression-logged-deal.test.js # the full "Log it." path: POST, refresh, recommendation advance, timeline
 ```
 
-94 checks total, all green.
+105 checks total, all green.
+
+## Theme
+
+- **Auto** (default): follows the OS `prefers-color-scheme` — light in the day, dark at night, no setup.
+- **Light / Dark**: force either one from Settings → Theme. Applies instantly and persists server-side.

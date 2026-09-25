@@ -168,4 +168,30 @@ ok(RAO.hygItems("review").length === 1, "hygItems filters review phase");
 ok(RAO.hygItems("action").length === 1, "hygItems filters action phase");
 ok(RAO.hygItems("outcome").length === 1, "hygItems filters outcome phase");
 
+// ---- theme ----
+h = RAO.render.settingsHTML();
+ok(h.includes('data-act="set-theme"'), "settings shows a theme picker");
+ok(h.includes('data-theme-val="auto"') && h.includes('data-theme-val="light"') && h.includes('data-theme-val="dark"'), "theme picker offers auto / light / dark");
+ok(h.includes('class="on" data-act="set-theme" data-theme-val="auto"'), "theme picker defaults to auto");
+RAO.state.settings.theme = "dark";
+h = RAO.render.settingsHTML();
+ok(h.includes('class="on" data-act="set-theme" data-theme-val="dark"'), "theme picker marks the saved theme");
+RAO.state.settings.theme = "auto";
+var themeAttrs = {};
+sandbox.document.documentElement = {
+  setAttribute: function (k, v) { themeAttrs[k] = v; },
+  removeAttribute: function (k) { delete themeAttrs[k]; },
+};
+RAO.state.settings.theme = "light"; RAO.applyTheme();
+ok(themeAttrs["data-theme"] === "light", "explicit light sets data-theme=light");
+RAO.state.settings.theme = "dark"; RAO.applyTheme();
+ok(themeAttrs["data-theme"] === "dark", "explicit dark sets data-theme=dark");
+RAO.state.settings.theme = "auto"; RAO.applyTheme();
+ok(!("data-theme" in themeAttrs), "auto removes data-theme so the OS media query decides");
+RAO.state.settings.theme = "bogus"; RAO.applyTheme();
+ok(!("data-theme" in themeAttrs), "unknown theme falls back to auto");
+ok(css.includes("prefers-color-scheme"), "css switches to light automatically from the OS setting");
+ok(css.includes('[data-theme="light"]'), "css supports a forced light theme");
+ok(css.includes("color-scheme"), "css declares color-scheme for native form controls");
+
 console.log("\nui: " + n + " passed");

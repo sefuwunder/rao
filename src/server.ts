@@ -23,6 +23,7 @@ const DEFAULTS: Record<string, string> = {
   workspace_id: "",
   display_name: "",
   reduce_motion: "0",
+  theme: "auto",
 };
 
 export function todayStr(d = new Date()): string {
@@ -201,6 +202,7 @@ export function createApp(dataDir?: string) {
           return json({ error: `${k} must start with http:// or https://` }, 400);
         }
         if (k === "reduce_motion") v = v === "1" ? "1" : "0";
+        if (k === "theme") v = ["auto", "light", "dark"].includes(v) ? v : "auto";
         set("s:" + k, v);
       }
       if (wsId() !== prevWs) { set("milton_session", ""); set("milton_session_ws", ""); }

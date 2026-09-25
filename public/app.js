@@ -43,6 +43,16 @@ function nowLocal() {
   var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
   return todayStr() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
+/* Theme: "auto" follows the OS via prefers-color-scheme (no data-theme attr);
+   "light"/"dark" force it through data-theme on <html>. */
+function applyTheme() {
+  var t = (S.settings && S.settings.theme) || "auto";
+  if (t !== "light" && t !== "dark") t = "auto";
+  var root = document.documentElement;
+  if (!root || !root.setAttribute) return;
+  if (t === "auto") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", t);
+}
 function fmtMoney(n) {
   n = Number(n) || 0;
   if (n >= 1000000) return "$" + (n / 1000000).toFixed(n % 1000000 ? 1 : 0) + "M";
@@ -455,6 +465,10 @@ function settingsHTML() {
     setField("workspace_id", "Workspace ID", s.workspace_id, "e.g. 1 — blank for default") +
     setField("display_name", "Your name", s.display_name, "for greetings") +
     '<div class="toggle-row"><span>Reduce motion</span><button class="switch' + (s.reduce_motion === "1" ? " on" : "") + '" data-act="toggle-motion" aria-label="Reduce motion"></button></div>' +
+    '<div class="toggle-row"><span>Theme</span><div class="seg" role="group" aria-label="Theme">' +
+    [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(function (o) {
+      return '<button class="' + ((s.theme || "auto") === o[0] ? "on" : "") + '" data-act="set-theme" data-theme-val="' + o[0] + '">' + o[1] + "</button>";
+    }).join("") + "</div></div>" +
     "</div>";
   h += '<button class="cta" data-act="save-settings">Save settings</button>';
   h += '<div style="height:14px"></div><button class="ghost-btn danger" data-act="fresh-day">Start a fresh day</button>';
@@ -540,6 +554,16 @@ function onTap(e) {
     document.body.classList.toggle("reduce-motion", on);
     t.classList.toggle("on", on);
     api("/api/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reduce_motion: S.settings.reduce_motion }) });
+  }
+  else if (act === "set-theme") {
+    var tv = t.getAttribute("data-theme-val") || "auto";
+    S.settings.theme = tv;
+    applyTheme();
+    var seg = t.parentElement;
+    if (seg && seg.querySelectorAll) Array.prototype.forEach.call(seg.querySelectorAll("button"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-theme-val") === tv);
+    });
+    api("/api/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ theme: tv }) });
   }
   else if (act === "save-settings") saveSettings();
   else if (act === "fresh-day") freshDay();
@@ -706,6 +730,7 @@ function boot() {
     }
     S.settings = res.body.settings; S.day = res.body.day;
     document.body.classList.toggle("reduce-motion", S.settings.reduce_motion === "1");
+    applyTheme();
     if (S.day.done) { S.view = "outcome"; } /* finished day stays in Outcome */
     else { S.view = S.day.phase; }
     enter(S.view);
@@ -747,7 +772,7 @@ var RAO = {
   toggleCheck: toggleCheck, nextUp: nextUp, hygItems: hygItems,
   toggleSheet: toggleSheet, sendChat: sendChat, boot: boot,
   logOutcome: logOutcome, touchedTodayDealIds: touchedTodayDealIds,
-  todayStr: todayStr, nowLocal: nowLocal,
+  todayStr: todayStr, nowLocal: nowLocal, applyTheme: applyTheme,
 };
 if (typeof window !== "undefined") window.RAO = RAO;
 if (typeof module !== "undefined" && module.exports) module.exports = RAO;
