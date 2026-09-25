@@ -731,6 +731,16 @@ function miltonCardHtml(c) {
       (o.sub ? ' <span class="sub">' + esc(o.sub) + "</span>" : "") + "</button>";
   });
   (c.items || []).forEach(function (it) {
+    if (c.kind === "suggestions") {
+      // "Did you mean…" command suggestions: tappable buttons that send the
+      // example command ("/"-prefixed, like the suggestion chips — Milton's
+      // parser strips the slash). Name + description; usage is the payload.
+      var cmd = it.usage || it.name || "";
+      var cmdLabel = it.name || it.label || it.title || cmd;
+      if (cmd) h += '<button class="mopt" data-send="/' + esc(cmd) + '"><b>›</b> ' + esc(cmdLabel) +
+        (it.description ? ' <span class="sub">' + esc(it.description) + "</span>" : "") + "</button>";
+      return;
+    }
     var label = it.title || it.name || it.label || it.text || "";
     var sub = it.sub || ((it.stage || it.value != null)
       ? (it.stage || "") + (it.value != null ? " · " + fmtMoney(it.value) : "") : "");

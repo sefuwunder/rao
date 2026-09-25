@@ -258,5 +258,17 @@ ok(pipeHtml.includes("Discovery") && pipeHtml.includes("$50k"), "pipeline rows s
 ok(pipeHtml.includes("Negotiation") && pipeHtml.includes("$120k"), "pipeline rows show every stage");
 var oddHtml = RAO.miltonCardHtml({ title: "Odd", rows: [{ foo: "bar", n: 3 }] });
 ok(oddHtml.indexOf("[object Object]") === -1 && oddHtml.includes("bar"), "unknown object rows degrade to their scalar fields");
+// ---- "Did you mean…" suggestions card items are tappable (2026-09-25) ----
+var suggHtml = RAO.miltonCardHtml({
+  kind: "suggestions", title: "Did you mean…",
+  items: [
+    { name: "reschedule_tasks", description: "Reschedule a task or a group of tasks (lists every move, asks first)", usage: "push all overdue tasks to next monday", examples: [] },
+    { name: "pause_schedule", description: "Pause a schedule", usage: "pause my morning schedule", examples: [] },
+  ],
+});
+ok(suggHtml.indexOf("[object Object]") === -1, "suggestion items never render as [object Object]");
+ok(suggHtml.includes('data-send="/push all overdue tasks to next monday"'), "suggestion buttons send the example command");
+ok(suggHtml.includes("reschedule_tasks") && suggHtml.includes("Reschedule a task"), "suggestion buttons show name + description");
+ok(suggHtml.includes('data-send="/pause my morning schedule"'), "every suggestion item is tappable");
 
 console.log("\nui: " + n + " passed");
