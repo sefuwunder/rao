@@ -457,6 +457,42 @@ textarea.note:focus, .text-in:focus { outline: none; border-color: var(--mint); 
 }
 .send-btn:active { transform: scale(.9); }
 
+/* milton reply cards + quick-reply chips (mirrors exec-crm's dock) */
+.chat-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; align-items: flex-start; flex: none; }
+.chat-chips::-webkit-scrollbar { display: none; }
+.chat-chips:empty { display: none; }
+.mchip {
+  flex: none; border: 1px solid var(--line); background: var(--glass); color: var(--txt);
+  border-radius: 99px; padding: 9px 15px; font-size: 13.5px; font-weight: 650;
+  font-family: inherit; cursor: pointer; transition: transform .2s var(--spring), background .2s;
+}
+.mchip:active { transform: scale(.94); background: var(--glass-hi); }
+.mcard {
+  margin-top: 10px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--glass); padding: 4px 12px 8px; overflow: hidden;
+}
+.msg .mcard:first-child { margin-top: 0; }
+.mcard-title { font-weight: 800; font-size: 14px; padding: 8px 0 4px; }
+.mstat { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 13.5px; border-top: 1px solid var(--hair); }
+.mstat span { color: var(--dim); }
+.mstat b { font-weight: 700; }
+.mopt {
+  display: block; width: 100%; text-align: left; margin: 7px 0; padding: 11px 13px;
+  border-radius: 12px; border: 1px solid rgba(124,108,255,.35);
+  background: rgba(124,108,255,.12); color: var(--txt);
+  font-size: 14px; font-family: inherit; cursor: pointer;
+  transition: transform .2s var(--spring), background .2s;
+}
+.mopt b { color: var(--iris); margin-right: 5px; }
+.mopt .sub, .mitem .sub { color: var(--dim); font-size: 12.5px; }
+.mopt:active { transform: scale(.97); background: rgba(124,108,255,.2); }
+.mitem { padding: 4px 0; font-size: 13.5px; line-height: 1.5; }
+.mocr {
+  font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap;
+  background: var(--well); border-radius: 10px; padding: 10px 12px; margin: 8px 0 4px;
+  color: var(--txt); max-height: 220px; overflow: auto;
+}
+
 /* toast */
 .toast {
   position: fixed; left: 50%; bottom: calc(96px + var(--safe-b)); transform: translateX(-50%) translateY(20px);

@@ -538,8 +538,9 @@ function bind(view, root) {
   if (note) note.addEventListener("input", function () { S.compose.note = note.value; });
 }
 function onTap(e) {
-  var t = e.target.closest("[data-go],[data-act],[data-check],[data-task],[data-done-task],[data-log-deal],[data-pick-deal],[data-pick-channel],[data-pick-outcome],[data-stage],[data-attn]");
+  var t = e.target.closest("[data-go],[data-act],[data-check],[data-task],[data-done-task],[data-log-deal],[data-pick-deal],[data-pick-channel],[data-pick-outcome],[data-stage],[data-attn],[data-send]");
   if (!t) return;
+  if (t.hasAttribute("data-send")) { sendChat(t.getAttribute("data-send")); return; }
   if (t.hasAttribute("data-go")) { var dest = t.getAttribute("data-go"); go(dest, PHASES.indexOf(dest) < PHASES.indexOf(S.view)); return; }
   if (t.hasAttribute("data-check")) { toggleCheck(t.getAttribute("data-check")); return; }
   if (t.hasAttribute("data-task")) { toggleTask(Number(t.getAttribute("data-task"))); return; }
@@ -711,17 +712,58 @@ function toggleSheet(open) {
   $("sheet-scrim").classList.toggle("show", S.chatOpen);
   if (S.chatOpen) setTimeout(function () { var i = $("chat-input"); if (i) i.focus(); }, 350);
 }
-function pushMsg(role, text) {
-  S.chat.push({ role: role, text: text });
+/* Milton reply cards — mirrors exec-crm's dock: numbered options and confirm
+   buttons send their payload back as the next message; entity cards render
+   title/stats/items. Unknown shapes degrade to their text. */
+function miltonCardHtml(c) {
+  c = c || {};
+  var h = '<div class="mcard">';
+  if (c.title) h += '<div class="mcard-title">' + esc(c.title) + "</div>";
+  (c.stats || []).forEach(function (s) {
+    h += '<div class="mstat"><span>' + esc(s.label) + "</span><b>" + esc(s.value) + "</b></div>";
+  });
+  (c.options || []).forEach(function (o) {
+    h += '<button class="mopt" data-send="' + esc(String(o.n != null ? o.n : o.label)) + '"><b>' +
+      esc(String(o.n != null ? o.n : "•")) + '.</b> ' + esc(o.label) +
+      (o.sub ? ' <span class="sub">' + esc(o.sub) + "</span>" : "") + "</button>";
+  });
+  (c.items || []).forEach(function (it) {
+    var label = it.title || it.name || it.label || it.text || "";
+    var sub = it.sub || ((it.stage || it.value != null)
+      ? (it.stage || "") + (it.value != null ? " · " + fmtMoney(it.value) : "") : "");
+    if (label) h += '<div class="mitem">• ' + esc(String(label)) +
+      (sub ? ' <span class="sub">' + esc(String(sub)) + "</span>" : "") + "</div>";
+  });
+  (c.rows || []).forEach(function (r) {
+    h += '<div class="mitem">• ' + esc(Array.isArray(r) ? r.join(" · ") : String(r)) + "</div>";
+  });
+  if (c.ocrText) h += '<pre class="mocr">' + esc(c.ocrText) + "</pre>";
+  return h + "</div>";
+}
+function miltonCardsHtml(cards) {
+  return (cards || []).map(miltonCardHtml).join("");
+}
+function paintChips(chips) {
+  var el = $("chat-chips"); if (!el) return;
+  el.innerHTML = (chips || []).map(function (c) {
+    return '<button class="mchip" data-send="' + esc(c) + '">' + esc(c) + "</button>";
+  }).join("");
+}
+function pushMsg(role, text, cards) {
+  S.chat.push({ role: role, text: text, cards: cards || null });
   var log = $("chat-log"); if (!log) return;
   var div = document.createElement("div");
   div.className = "msg " + role;
-  div.innerHTML = md(text);
+  div.innerHTML = md(text) + miltonCardsHtml(cards);
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
 }
 function sendChat(text) {
+  text = String(text || "").trim();
+  if (!text) return;
+  if (!S.chatOpen) toggleSheet(true);
   pushMsg("user", text);
+  paintChips([]);
   var log = $("chat-log");
   var typing = document.createElement("div");
   typing.className = "msg milton typing"; typing.innerHTML = "<i></i><i></i><i></i>";
@@ -731,7 +773,10 @@ function sendChat(text) {
     body: JSON.stringify({ message: text }),
   }).then(function (res) {
     typing.remove();
-    if (res.status === 200 && res.body.text) pushMsg("milton", res.body.text);
+    if (res.status === 200 && res.body.text) {
+      pushMsg("milton", res.body.text, res.body.cards);
+      paintChips(res.body.chips);
+    }
     else pushMsg("milton", "Milton is unreachable right now — check Settings, then try again.");
   });
 }
@@ -775,11 +820,14 @@ function boot() {
 function renderChatSeed() {
   var log = $("chat-log"); if (!log) return;
   log.innerHTML = "";
+  var lastChips = null;
   S.chat.forEach(function (m) {
     var div = document.createElement("div");
-    div.className = "msg " + m.role; div.innerHTML = md(m.text);
+    div.className = "msg " + m.role; div.innerHTML = md(m.text) + miltonCardsHtml(m.cards);
     log.appendChild(div);
+    if (m.chips) lastChips = m.chips;
   });
+  paintChips(lastChips);
 }
 
 var RAO = {
@@ -791,6 +839,7 @@ var RAO = {
   bind: bind, go: go, mount: mount, paintRail: paintRail, enter: enter,
   toggleCheck: toggleCheck, nextUp: nextUp, hygItems: hygItems,
   toggleSheet: toggleSheet, sendChat: sendChat, boot: boot, onTap: onTap,
+  miltonCardHtml: miltonCardHtml, paintChips: paintChips,
   logOutcome: logOutcome, touchedTodayDealIds: touchedTodayDealIds,
   todayStr: todayStr, nowLocal: nowLocal, applyTheme: applyTheme,
 };

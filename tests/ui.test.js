@@ -221,4 +221,29 @@ ok(!sheetRule.includes("rgba(20,22,31"), "milton sheet has no hardcoded dark bac
 const toastRule = (css.match(/\.toast\s*\{[^}]*\}/) || [""])[0];
 ok(toastRule.includes("var(--float)"), "toast background uses the themed --float surface");
 
+// ---- milton clickable cards + chips (parity with exec-crm's dock) ----
+var cardHtml = RAO.miltonCardHtml({
+  title: "Pick a deal",
+  stats: [{ label: "Open", value: "3" }],
+  options: [{ n: 1, label: "Acme renewal", sub: "negotiation · $50k" }, { n: 2, label: "Cancel" }],
+  items: [{ title: "Beta", sub: "discovery" }],
+  rows: [["a", "b"]],
+  ocrText: "hello",
+});
+ok(cardHtml.includes('class="mcard"'), "card renders a card container");
+ok(cardHtml.includes('class="mopt" data-send="1"'), "card options are clickable and send their number");
+ok(cardHtml.includes("Acme renewal") && cardHtml.includes("negotiation"), "card options show label and sub");
+ok(cardHtml.includes('class="mstat"'), "card stats render label/value rows");
+ok(cardHtml.includes("Beta") && cardHtml.includes("discovery"), "card items render");
+ok(cardHtml.includes("a · b"), "card rows render joined");
+ok(cardHtml.includes('class="mocr"'), "card ocr text renders");
+var evilCard = RAO.miltonCardHtml({ title: "<b>x</b>", options: [{ n: 1, label: "<img src=x>" }] });
+ok(evilCard.indexOf("<b>x</b>") === -1 && evilCard.indexOf("&lt;b&gt;") !== -1, "card html escapes untrusted content");
+ok(styleCss.includes(".mopt") && styleCss.includes(".mchip"), "css styles card option buttons and chips");
+ok(styleCss.includes(".chat-chips"), "css styles the chips row");
+var chipsRule = (styleCss.match(/\.chat-chips\s*\{[^}]*\}/) || [""])[0];
+ok(chipsRule.includes("align-items: flex-start"), "chips row keeps buttons at natural height (no stretch squash)");
+var idxHtml2 = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+ok(idxHtml2.includes('id="chat-chips"'), "sheet markup includes a chips row");
+
 console.log("\nui: " + n + " passed");
