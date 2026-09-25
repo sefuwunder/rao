@@ -49,6 +49,8 @@ instead of a spinner.
 - Review's **Begin action** stays disabled until all three checklist steps are
   checked; the checklist persists via `/api/day`.
 - Action ends with **Continue to outcome →** — the guided transition.
+- Logging an outcome advances the loop: deals touched today are skipped by the
+  Action recommendation and marked **Logged ✓** in Milton's suggestion list.
 - Outcome's **Wrap the day** shows the day's totals, then **Finish the day ✓**
   marks the day done. The completed-day panel renders inside Outcome with the
   Outcome phase tag; **Reopen the day** un-does it, **Start a fresh day** resets.
