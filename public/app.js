@@ -132,12 +132,23 @@ function loadOutreach() {
       S.channels = res.body.channels || [];
       if (S.compose.channel === "call" && S.channels.length) S.compose.channel = S.channels[0].value;
     }
-    if (S.view === "outcome") mount(S.view, true);
+    if (S.view === "outcome" || S.view === "action") mount(S.view, true);
   });
 }
 function hygItems(phase) {
   if (!S.hygiene) return [];
   return S.hygiene.items.filter(function (it) { return it.phase === phase; });
+}
+/* Deals with an outcome logged today (rao's composer sends no happened_at, so
+   fall back to created_at — same rule as the day-wrap stats). The Action hero
+   and suggestion list skip these: logging a touch advances the loop. */
+function touchedTodayDealIds() {
+  var t = todayStr(), ids = {};
+  (S.outreach || []).forEach(function (o) {
+    var d = String(o.happened_at || o.created_at || "").slice(0, 10);
+    if (d && d === t && o.deal_id != null) ids[Number(o.deal_id)] = true;
+  });
+  return ids;
 }
 
 /* ---------- phase navigation ---------- */
@@ -193,7 +204,7 @@ function mount(view, soft, back) {
    resolve but never re-trigger loads, so the cycle always terminates. */
 function loadFor(view) {
   if (view === "review") { loadBrief(); loadHygiene(); loadDeals(); loadTasks(); }
-  else if (view === "action") { loadHygiene(); loadTasks(); loadDeals(); }
+  else if (view === "action") { loadHygiene(); loadTasks(); loadDeals(); loadOutreach(); }
   else if (view === "outcome") { loadDeals(); loadOutreach(); loadHygiene(); loadTasks(); }
 }
 function enter(view, soft, back) {
@@ -311,8 +322,11 @@ function actionHTML() {
   else if (!S.hygiene) h += '<div class="card">' + skeleton(3) + "</div>";
   else if (!suggs.length) h += '<p class="empty-note">Nothing suggested. You\u2019re ahead of the playbook.</p>';
   else h += suggs.map(function (s, i) {
-    var did = s.ref && s.ref.deal_id ? s.ref.deal_id : "";
-    return '<div class="sugg-row"><span class="txt">' + esc(s.text) + '</span><button class="mini-btn" data-log-deal="' + did + '">Log</button></div>';
+    var did = s.ref && s.ref.deal_id ? Number(s.ref.deal_id) : 0;
+    var logged = did && touchedTodayDealIds()[did];
+    return '<div class="sugg-row' + (logged ? " logged" : "") + '"><span class="txt">' + esc(s.text) + "</span>" +
+      (logged ? '<span class="logged-chip">Logged ✓</span>'
+              : '<button class="mini-btn" data-log-deal="' + did + '">Log</button>') + "</div>";
   }).join("");
 
   h += '<div style="height:16px"></div><button class="cta ghost-cta" data-act="to-outcome">Continue to outcome →</button>';
@@ -327,11 +341,14 @@ function taskRow(t, overdue) {
     "</span></button>";
 }
 function nextUp() {
-  var acts = hygItems("action");
+  var touched = touchedTodayDealIds();
+  var acts = hygItems("action").filter(function (it) {
+    var r = it.ref;
+    return !(r && r.deal_id && touched[Number(r.deal_id)]);
+  });
   for (var i = 0; i < acts.length; i++) {
     var r = acts[i].ref;
     if (r && r.deal_id) {
-      var d = dealById(r.deal_id);
       return { what: acts[i].text, why: "Milton's playbook flagged this as the highest-leverage touch.", dealId: r.deal_id, taskId: 0 };
     }
   }
@@ -721,6 +738,7 @@ var RAO = {
   bind: bind, go: go, mount: mount, paintRail: paintRail, enter: enter,
   toggleCheck: toggleCheck, nextUp: nextUp, hygItems: hygItems,
   toggleSheet: toggleSheet, sendChat: sendChat, boot: boot,
+  logOutcome: logOutcome, touchedTodayDealIds: touchedTodayDealIds,
 };
 if (typeof window !== "undefined") window.RAO = RAO;
 if (typeof module !== "undefined" && module.exports) module.exports = RAO;

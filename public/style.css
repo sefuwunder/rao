@@ -247,6 +247,12 @@ body {
   transition: transform .2s var(--spring);
 }
 .mini-btn:active { transform: scale(.93); }
+.logged-chip {
+  flex: none; font-size: 12px; font-weight: 750; color: var(--mint);
+  background: rgba(52,211,153,.14); border: 1px solid rgba(52,211,153,.4);
+  border-radius: 999px; padding: 8px 12px;
+}
+.sugg-row.logged { opacity: .75; }
 
 /* outcome composer */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }

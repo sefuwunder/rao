@@ -1,1 +1,9 @@
-{"description":"Review · Action · Outcome — a tight mobile-first CRM loop with Milton as its logic engine","name":"rao","scripts":{"start":"bun src/server.ts","test":"bun test && node tests/ui.test.js && node tests/interaction.test.js"},"version":"1.0.0"}
+{
+  "description": "Review · Action · Outcome — a tight mobile-first CRM loop with Milton as its logic engine",
+  "name": "rao",
+  "scripts": {
+    "start": "bun src/server.ts",
+    "test": "bun test && node tests/ui.test.js && node tests/interaction.test.js && node tests/regression-logged-deal.test.js"
+  },
+  "version": "1.0.0"
+}
