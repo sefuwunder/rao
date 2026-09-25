@@ -213,5 +213,12 @@ ok(!("data-theme" in themeAttrs), "unknown theme falls back to auto");
 ok(css.includes("prefers-color-scheme"), "css switches to light automatically from the OS setting");
 ok(css.includes('[data-theme="light"]'), "css supports a forced light theme");
 ok(css.includes("color-scheme"), "css declares color-scheme for native form controls");
+// ---- floating surfaces follow the theme (milton sheet, toast) ----
+ok((css.match(/--float:/g) || []).length >= 3, "--float is defined for dark, auto-light, and forced-light");
+const sheetRule = (css.match(/\.sheet\s*\{[^}]*\}/) || [""])[0];
+ok(sheetRule.includes("var(--float)"), "milton sheet background uses the themed --float surface");
+ok(!sheetRule.includes("rgba(20,22,31"), "milton sheet has no hardcoded dark background");
+const toastRule = (css.match(/\.toast\s*\{[^}]*\}/) || [""])[0];
+ok(toastRule.includes("var(--float)"), "toast background uses the themed --float surface");
 
 console.log("\nui: " + n + " passed");
