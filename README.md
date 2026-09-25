@@ -79,7 +79,7 @@ node tests/ui.test.js         # render: phases, gating, escaping, offline states
 node tests/regression-logged-deal.test.js # the full "Log it." path: POST, refresh, recommendation advance, timeline
 ```
 
-105 checks total, all green.
+110 checks total, all green.
 
 ## Theme
 

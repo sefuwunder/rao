@@ -163,6 +163,10 @@ const css = fs.readFileSync(path.join(__dirname, "..", "public", "style.css"), "
 ok(css.includes("prefers-reduced-motion"), "css honors the OS reduced-motion setting");
 ok(css.includes("body.reduce-motion"), "css supports the explicit reduce-motion toggle");
 
+// ---- settings entry point ----
+const idxHtml = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+ok(idxHtml.includes('id="settings-btn" data-act="go-settings"'), "topbar settings button is wired to go-settings");
+
 // ---- hygiene phase routing ----
 ok(RAO.hygItems("review").length === 1, "hygItems filters review phase");
 ok(RAO.hygItems("action").length === 1, "hygItems filters action phase");

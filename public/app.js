@@ -198,9 +198,6 @@ function paintRail() {
       g.style.left = (6 + idx * (bw + 6)) + "px";
     }
   }
-  rail.querySelectorAll("[data-go]").forEach(function (b) {
-    b.addEventListener("click", function () { go(b.getAttribute("data-go"), PHASES.indexOf(b.getAttribute("data-go")) < idx); });
-  });
 }
 function mount(view, soft, back) {
   var v = $("view"); if (!v) return;
@@ -501,7 +498,9 @@ function dayCompleteHTML() {
 
 /* ---------- event binding ---------- */
 function bind(view, root) {
-  root.addEventListener("click", onTap);
+  /* onTap is delegated once at the document level in boot() — attaching it
+     per mount stacked duplicate handlers on #view (a second toggle-motion
+     tap, for example, flipped the value back and looked dead). */
   if (view === "settings") { checkHealth(); }
   var qa = root.querySelector("#quick-add");
   if (qa) qa.addEventListener("submit", function (e) {
@@ -523,7 +522,7 @@ function bind(view, root) {
 function onTap(e) {
   var t = e.target.closest("[data-go],[data-act],[data-check],[data-task],[data-done-task],[data-log-deal],[data-pick-deal],[data-pick-channel],[data-pick-outcome],[data-stage],[data-attn]");
   if (!t) return;
-  if (t.hasAttribute("data-go")) { go(t.getAttribute("data-go")); return; }
+  if (t.hasAttribute("data-go")) { var dest = t.getAttribute("data-go"); go(dest, PHASES.indexOf(dest) < PHASES.indexOf(S.view)); return; }
   if (t.hasAttribute("data-check")) { toggleCheck(t.getAttribute("data-check")); return; }
   if (t.hasAttribute("data-task")) { toggleTask(Number(t.getAttribute("data-task"))); return; }
   if (t.hasAttribute("data-done-task")) { toggleTask(Number(t.getAttribute("data-done-task"))); return; }
@@ -638,7 +637,7 @@ function wrapDay() {
     '<button class="cta mint" data-act="finish-day">Finish the day ✓</button> ' +
     '<div style="height:10px"></div><button class="ghost-btn" data-act="back">Keep working</button></div>';
   v.className = "view-enter";
-  v.addEventListener("click", onTap);
+  /* click handling is delegated once at the document level (see boot) */
 }
 function finishDay() {
   api("/api/day", {
@@ -738,6 +737,9 @@ function boot() {
       renderChatSeed();
   });
   $("milton-fab").addEventListener("click", function () { toggleSheet(); });
+  /* one delegated tap handler for the whole app — the topbar (settings gear)
+     lives outside #view, so per-view binding never reached it. */
+  document.addEventListener("click", onTap);
   $("sheet-close").addEventListener("click", function () { toggleSheet(false); });
   $("sheet-scrim").addEventListener("click", function () { toggleSheet(false); });
   $("chat-form").addEventListener("submit", function (e) {
@@ -770,7 +772,7 @@ var RAO = {
   },
   bind: bind, go: go, mount: mount, paintRail: paintRail, enter: enter,
   toggleCheck: toggleCheck, nextUp: nextUp, hygItems: hygItems,
-  toggleSheet: toggleSheet, sendChat: sendChat, boot: boot,
+  toggleSheet: toggleSheet, sendChat: sendChat, boot: boot, onTap: onTap,
   logOutcome: logOutcome, touchedTodayDealIds: touchedTodayDealIds,
   todayStr: todayStr, nowLocal: nowLocal, applyTheme: applyTheme,
 };

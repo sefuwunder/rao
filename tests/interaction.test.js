@@ -110,5 +110,31 @@ function settle() { return new Promise((r) => setTimeout(r, 25)); }
   await settle();
   ok(posts.length === afterFirst, "loader refresh cycle terminates — no infinite re-mount");
 
+  // 7. the topbar settings gear opens settings through the delegated tap handler
+  function fakeBtn(attrs) {
+    return {
+      hasAttribute: (k) => attrs[k] !== undefined,
+      getAttribute: (k) => (attrs[k] !== undefined ? attrs[k] : null),
+    };
+  }
+  RAO.onTap({ target: { closest: () => fakeBtn({ "data-act": "go-settings" }) } });
+  await settle();
+  ok(S.view === "settings", "settings gear (data-act=go-settings) opens the settings view");
+
+  // 8. rail phase buttons still navigate through the single delegated handler
+  posts.length = 0;
+  RAO.onTap({ target: { closest: () => fakeBtn({ "data-go": "action" }) } });
+  await settle(); await settle();
+  ok(S.view === "action", "rail data-go navigates via the delegated handler");
+  ok(posts.some((p) => p.body && p.body.phase === "action"), "rail navigation persists the phase");
+
+  // 9. bind() attaches no click listener of its own — one document-level
+  // onTap handles everything, so handlers can never stack on #view again
+  let clicks = 0;
+  const r2 = el();
+  r2.addEventListener = (t) => { if (t === "click") clicks++; };
+  RAO.bind("review", r2); RAO.bind("action", r2);
+  ok(clicks === 0, "bind() attaches no click listener (single document-level delegation)");
+
   console.log("\ninteraction: " + n + " passed");
 })().catch((e) => { console.error("FAIL:", e.message); process.exit(1); });
