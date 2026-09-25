@@ -245,5 +245,18 @@ var chipsRule = (styleCss.match(/\.chat-chips\s*\{[^}]*\}/) || [""])[0];
 ok(chipsRule.includes("align-items: flex-start"), "chips row keeps buttons at natural height (no stretch squash)");
 var idxHtml2 = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
 ok(idxHtml2.includes('id="chat-chips"'), "sheet markup includes a chips row");
+// ---- pipeline-by-stage rows are objects, not strings (2026-09-25: rendered "[object Object]") ----
+var pipeHtml = RAO.miltonCardHtml({
+  kind: "pipeline", title: "Pipeline by stage",
+  rows: [
+    { stage: "discovery", label: "Discovery", count: 2, value: 50000 },
+    { stage: "negotiation", label: "Negotiation", count: 1, value: 120000 },
+  ],
+});
+ok(pipeHtml.indexOf("[object Object]") === -1, "object rows never render as [object Object]");
+ok(pipeHtml.includes("Discovery") && pipeHtml.includes("$50k"), "pipeline rows show stage label and value");
+ok(pipeHtml.includes("Negotiation") && pipeHtml.includes("$120k"), "pipeline rows show every stage");
+var oddHtml = RAO.miltonCardHtml({ title: "Odd", rows: [{ foo: "bar", n: 3 }] });
+ok(oddHtml.indexOf("[object Object]") === -1 && oddHtml.includes("bar"), "unknown object rows degrade to their scalar fields");
 
 console.log("\nui: " + n + " passed");

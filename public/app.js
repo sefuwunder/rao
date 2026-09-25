@@ -715,6 +715,9 @@ function toggleSheet(open) {
 /* Milton reply cards — mirrors exec-crm's dock: numbered options and confirm
    buttons send their payload back as the next message; entity cards render
    title/stats/items. Unknown shapes degrade to their text. */
+function miltonCardsHtml(cards) {
+  return (cards || []).map(miltonCardHtml).join("");
+}
 function miltonCardHtml(c) {
   c = c || {};
   var h = '<div class="mcard">';
@@ -734,14 +737,29 @@ function miltonCardHtml(c) {
     if (label) h += '<div class="mitem">• ' + esc(String(label)) +
       (sub ? ' <span class="sub">' + esc(String(sub)) + "</span>" : "") + "</div>";
   });
-  (c.rows || []).forEach(function (r) {
-    h += '<div class="mitem">• ' + esc(Array.isArray(r) ? r.join(" · ") : String(r)) + "</div>";
-  });
+  (c.rows || []).forEach(function (r) { h += miltonRowHtml(r); });
   if (c.ocrText) h += '<pre class="mocr">' + esc(c.ocrText) + "</pre>";
   return h + "</div>";
 }
-function miltonCardsHtml(cards) {
-  return (cards || []).map(miltonCardHtml).join("");
+/* A card row can be a string, an array of cells, or an object (e.g. Milton's
+   pipeline-by-stage rows: { label, count, value }). Objects never render as
+   "[object Object]": label/count/value shapes become stat rows, anything else
+   joins its scalar fields. */
+function miltonRowHtml(r) {
+  if (Array.isArray(r)) return '<div class="mitem">• ' + esc(r.join(" · ")) + "</div>";
+  if (r && typeof r === "object") {
+    var label = r.label || r.title || r.name || "";
+    var val = [];
+    if (r.count != null && r.count !== "") val.push(String(r.count));
+    if (r.value != null && r.value !== "") val.push(fmtMoney(r.value));
+    if (label || val.length) {
+      return '<div class="mstat"><span>' + esc(label || "—") + "</span><b>" + esc(val.join(" · ")) + "</b></div>";
+    }
+    var parts = [];
+    for (var k in r) { var v = r[k]; if (v != null && typeof v !== "object") parts.push(String(v)); }
+    return '<div class="mitem">• ' + esc(parts.join(" · ") || JSON.stringify(r)) + "</div>";
+  }
+  return '<div class="mitem">• ' + esc(String(r)) + "</div>";
 }
 function paintChips(chips) {
   var el = $("chat-chips"); if (!el) return;
