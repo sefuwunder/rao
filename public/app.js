@@ -36,6 +36,13 @@ function todayStr() {
   var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
   return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
 }
+/* Local wall-clock "YYYY-MM-DD HH:MM". exec-crm stamps created_at in UTC, so a
+   rao-logged outcome must carry its own local happened_at — otherwise anything
+   logged after 20:00 EDT lands on "tomorrow" and vanishes from today's views. */
+function nowLocal() {
+  var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
+  return todayStr() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
 function fmtMoney(n) {
   n = Number(n) || 0;
   if (n >= 1000000) return "$" + (n / 1000000).toFixed(n % 1000000 ? 1 : 0) + "M";
@@ -580,6 +587,7 @@ function logOutcome() {
     body: JSON.stringify({
       deal_id: S.compose.dealId, channel: S.compose.channel,
       outcome: S.compose.outcome, note: note,
+      happened_at: nowLocal(),
     }),
   }).then(function (res) {
     if (res.status === 200 || res.status === 201) {
@@ -739,6 +747,7 @@ var RAO = {
   toggleCheck: toggleCheck, nextUp: nextUp, hygItems: hygItems,
   toggleSheet: toggleSheet, sendChat: sendChat, boot: boot,
   logOutcome: logOutcome, touchedTodayDealIds: touchedTodayDealIds,
+  todayStr: todayStr, nowLocal: nowLocal,
 };
 if (typeof window !== "undefined") window.RAO = RAO;
 if (typeof module !== "undefined" && module.exports) module.exports = RAO;

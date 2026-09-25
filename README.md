@@ -51,6 +51,9 @@ instead of a spinner.
 - Action ends with **Continue to outcome →** — the guided transition.
 - Logging an outcome advances the loop: deals touched today are skipped by the
   Action recommendation and marked **Logged ✓** in Milton's suggestion list.
+  The composer records `happened_at` in local wall-clock time — exec-crm stamps
+  `created_at` in UTC, which would otherwise date evening entries "tomorrow" and
+  hide them from today's timeline.
 - Outcome's **Wrap the day** shows the day's totals, then **Finish the day ✓**
   marks the day done. The completed-day panel renders inside Outcome with the
   Outcome phase tag; **Reopen the day** un-does it, **Start a fresh day** resets.
@@ -73,7 +76,7 @@ instead of a spinner.
 ```sh
 bun test                      # server: state, proxying, milton sessions, static
 node tests/ui.test.js         # render: phases, gating, escaping, offline states
-node tests/interaction.test.js # handlers: checklist, navigation, loader termination
+node tests/regression-logged-deal.test.js # the full "Log it." path: POST, refresh, recommendation advance, timeline
 ```
 
-75 checks total, all green.
+94 checks total, all green.
