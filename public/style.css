@@ -30,6 +30,8 @@
   --r: 20px;
   --spring: cubic-bezier(.22, 1, .36, 1);
   --safe-b: env(safe-area-inset-bottom, 0px);
+  /* responsive layout tokens — widened at each breakpoint below */
+  --page-max: 560px;
 }
 /* Light theme. Automatic from the OS when theme=auto (no data-theme attr and
    not explicitly dark), or forced with data-theme="light". */
@@ -104,7 +106,7 @@ body {
   to { transform: translate3d(6vmax, -4vmax, 0) scale(1.12); }
 }
 
-#app { max-width: 560px; margin: 0 auto; padding: calc(14px + env(safe-area-inset-top, 0px)) 16px calc(96px + var(--safe-b)); min-height: 100dvh; }
+#app { max-width: var(--page-max); margin: 0 auto; padding: calc(14px + env(safe-area-inset-top, 0px)) 16px calc(96px + var(--safe-b)); min-height: 100dvh; }
 
 /* top bar */
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -417,7 +419,7 @@ textarea.note:focus, .text-in:focus { outline: none; border-color: var(--mint); 
 }
 .sheet-scrim.show { opacity: 1; pointer-events: auto; }
 .sheet {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 49; max-width: 560px; margin: 0 auto;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 49; max-width: min(var(--page-max), 560px); margin: 0 auto;
   background: rgba(20,22,31,.92); border: 1px solid var(--line); border-bottom: 0;
   border-radius: 26px 26px 0 0; padding: 8px 16px calc(16px + var(--safe-b));
   backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
@@ -474,9 +476,37 @@ textarea.note:focus, .text-in:focus { outline: none; border-color: var(--mint); 
 .offline-card { border-color: rgba(224,120,86,.4); }
 .offline-card p { color: var(--dim); font-size: 14px; line-height: 1.6; margin: 6px 0 12px; }
 
-@media (min-width: 600px) {
+/* ---------- responsive layout system ----------
+   Breakpoints: 760px (tablet), 1100px (desktop).
+   --page-max widens the canvas at each step. .split stacks its columns on
+   phones and places them side by side on desktop — wrap cards in it to give
+   a view a two-column layout. Variants: .major-left (7:5), .major-right (5:7).
+   On desktop the Milton sheet docks as a right-side panel. */
+.split { display: grid; gap: 0 22px; align-items: start; }
+.split > * { min-width: 0; }
+
+@media (min-width: 760px) {
+  :root { --page-max: 700px; }
   #app { padding-top: 26px; }
   .greet { font-size: 32px; }
+}
+
+@media (min-width: 1100px) {
+  :root { --page-max: 1060px; }
+  #app { padding-left: 30px; padding-right: 30px; }
+  .split { grid-template-columns: 1fr 1fr; }
+  .split.major-left { grid-template-columns: 7fr 5fr; }
+  .split.major-right { grid-template-columns: 5fr 7fr; }
+  .greet { font-size: 36px; }
+  .hero .what { font-size: 23px; }
+  /* milton docks as a side panel; no modal scrim needed */
+  .sheet {
+    left: auto; right: 24px; top: 76px; bottom: 100px; margin: 0;
+    width: min(400px, 32vw); max-width: none; max-height: none;
+    border-radius: 24px; border-bottom: 1px solid var(--line);
+    transform: translateX(calc(100% + 48px));
+  }
+  .sheet-scrim { display: none; }
 }
 
 /* stillness on request */

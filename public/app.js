@@ -243,6 +243,8 @@ function reviewHTML() {
   h += '<div class="greet">' + greeting() + "</div>";
   h += '<p class="greet-sub">Look at the day before the day looks at you.</p>';
 
+  h += '<div class="split major-left"><div>';
+
   // brief
   h += '<div class="card"><h3><span class="accent-r">◉</span> Milton\u2019s brief</h3>';
   if (S.brief) h += '<div class="brief-body">' + md(S.brief) + "</div>";
@@ -257,6 +259,8 @@ function reviewHTML() {
   h += '<div class="stats">' +
     stat(fmtMoney(pipe), "pipeline") + stat(open.length, "open deals") +
     stat(due, "due today") + stat(od, "overdue", od > 0) + "</div>";
+
+  h += '</div><div>';
 
   // attention (review-phase hygiene)
   h += '<div class="card"><h3><span class="accent-r">◎</span> Needs your eyes</h3>';
@@ -280,6 +284,7 @@ function reviewHTML() {
   var n = done.length;
   h += '<button class="cta" data-act="begin-action" ' + (n >= REVIEW_STEPS.length ? "" : "disabled") + ">" +
     (n >= REVIEW_STEPS.length ? "Begin action →" : "Begin action <span class=\"n\">" + n + " of " + REVIEW_STEPS.length + "</span>") + "</button>";
+  h += "</div></div>";
   return h + "</div>";
 }
 function stat(v, l, warn) {
@@ -296,6 +301,8 @@ function actionHTML() {
   h += '<span class="phase-tag a">Action</span>';
   h += '<div class="greet">Do the next thing.</div>';
   h += '<p class="greet-sub">One thing at a time. Milton picked the order.</p>';
+
+  h += '<div class="split major-left"><div>';
 
   // next-up hero
   var next = nextUp();
@@ -329,6 +336,8 @@ function actionHTML() {
       '<button class="send-btn" type="submit" aria-label="Add task">+</button></form>';
   }
 
+  h += '</div><div>';
+
   // milton suggests
   var suggs = hygItems("action").slice(0, 5);
   h += '<div class="kicker-row" style="margin-top:18px"><h2>Milton suggests</h2></div>';
@@ -344,6 +353,7 @@ function actionHTML() {
   }).join("");
 
   h += '<div style="height:16px"></div><button class="cta ghost-cta" data-act="to-outcome">Continue to outcome →</button>';
+  h += "</div></div>";
   return h + "</div>";
 }
 function taskRow(t, overdue) {
@@ -381,6 +391,8 @@ function outcomeHTML() {
   h += '<div class="greet">What came back?</div>';
   h += '<p class="greet-sub">Log what happened. Every outcome teaches Milton what to suggest next.</p>';
 
+  h += '<div class="split"><div>';
+
   // composer
   var open = openDeals();
   h += '<div class="card"><h3><span class="accent-o">✎</span> Log an outcome</h3>';
@@ -400,6 +412,8 @@ function outcomeHTML() {
     }).join("") + "</div>";
   h += '<textarea class="note" id="oc-note" placeholder="What happened? (optional)">' + esc(S.compose.note) + "</textarea>";
   h += '<button class="cta mint" data-act="log-outcome" style="margin-top:12px">Log it</button></div>';
+
+  h += '</div><div>';
 
   // today timeline
   var t = todayStr();
@@ -440,6 +454,7 @@ function outcomeHTML() {
   h += "</div>";
 
   // wrap
+  h += "</div></div>";
   h += '<button class="cta mint" data-act="wrap-day">Wrap the day →</button>';
   return h + "</div>";
 }
@@ -453,9 +468,11 @@ function settingsHTML() {
   var h = '<div class="stagger">';
   h += '<button class="ghost-btn" data-act="back" style="margin-bottom:14px">‹ Back</button>';
   h += '<div class="greet">Settings</div><p class="greet-sub">The only screen that isn\u2019t Review, Action, or Outcome.</p>';
+  h += '<div class="split"><div>';
   h += '<div class="card"><h3>Connections</h3>' +
     '<div class="conn" id="conn-crm"><span class="pip"></span>exec-crm — checking…</div>' +
     '<div class="conn" id="conn-milton"><span class="pip"></span>Milton — checking…</div></div>';
+  h += '</div><div>';
   h += '<div class="card"><h3>Setup</h3>' +
     setField("exec_crm_url", "exec-crm URL", s.exec_crm_url) +
     setField("milton_url", "Milton URL", s.milton_url) +
@@ -467,6 +484,7 @@ function settingsHTML() {
       return '<button class="' + ((s.theme || "auto") === o[0] ? "on" : "") + '" data-act="set-theme" data-theme-val="' + o[0] + '">' + o[1] + "</button>";
     }).join("") + "</div></div>" +
     "</div>";
+  h += '</div></div>';
   h += '<button class="cta" data-act="save-settings">Save settings</button>';
   h += '<div style="height:14px"></div><button class="ghost-btn danger" data-act="fresh-day">Start a fresh day</button>';
   return h + "</div>";

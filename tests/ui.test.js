@@ -167,6 +167,22 @@ ok(css.includes("body.reduce-motion"), "css supports the explicit reduce-motion 
 const idxHtml = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
 ok(idxHtml.includes('id="settings-btn" data-act="go-settings"'), "topbar settings button is wired to go-settings");
 
+// ---- responsive layout system ----
+ok(RAO.render.reviewHTML().includes('class="split major-left"'), "review uses a major-left split for desktop columns");
+ok(RAO.render.actionHTML().includes('class="split major-left"'), "action uses a major-left split for desktop columns");
+ok(RAO.render.outcomeHTML().includes('<div class="split"><div>'), "outcome uses an even split for desktop columns");
+ok(RAO.render.settingsHTML().includes('<div class="split"><div>'), "settings uses an even split for desktop columns");
+["review", "action", "outcome", "settings"].forEach((v) => {
+  const h = RAO.render[v + "HTML"]();
+  const opens = (h.match(/<div/g) || []).length, closes = (h.match(/<\/div>/g) || []).length;
+  ok(opens === closes, v + " view has balanced divs (" + opens + " opened, " + closes + " closed)");
+});
+const styleCss = fs.readFileSync(path.join(__dirname, "..", "public", "style.css"), "utf8");
+ok(styleCss.includes("--page-max"), "layout width is a --page-max token");
+ok(styleCss.includes("@media (min-width: 760px)"), "tablet breakpoint exists");
+ok(styleCss.includes("@media (min-width: 1100px)"), "desktop breakpoint exists");
+ok(styleCss.includes("translateX(calc(100% + 48px))"), "milton sheet docks as a side panel on desktop");
+
 // ---- hygiene phase routing ----
 ok(RAO.hygItems("review").length === 1, "hygItems filters review phase");
 ok(RAO.hygItems("action").length === 1, "hygItems filters action phase");
