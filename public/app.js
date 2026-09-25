@@ -23,6 +23,7 @@ var S = {
   compose: { dealId: null, channel: "call", outcome: "", note: "" },
   chat: [], chatOpen: false,
   wrap: null,
+  ui: { expanded: {} },
 };
 
 /* ---------- tiny helpers ---------- */
@@ -98,6 +99,17 @@ function stageLabel(slug) {
   return S.labels[slug] || String(slug || "").replace(/_/g, " ");
 }
 function taskDue(d) { return String(d.due_date || "").slice(0, 10); }
+var LIST_CAP = 8;
+/* No list runs longer than LIST_CAP by default — a "more" button reveals the rest. */
+function cappedList(id, items, rowFn) {
+  var expanded = S.ui.expanded[id];
+  var shown = expanded ? items : items.slice(0, LIST_CAP);
+  var h = shown.map(rowFn).join("");
+  if (!expanded && items.length > LIST_CAP)
+    h += '<button class="more-btn" data-act="expand-list" data-list="' + esc(id) + '">Show ' +
+      (items.length - LIST_CAP) + " more</button>";
+  return h;
+}
 function overdueTasks() {
   var t = todayStr();
   return S.tasks.filter(function (x) { return !x.done && taskDue(x) && taskDue(x) < t; });
@@ -306,7 +318,9 @@ function actionHTML() {
 
   // next-up hero
   var next = nextUp();
+  var ndeal = next.dealId ? dealById(next.dealId) : null;
   h += '<div class="hero"><div class="kicker">Next up</div><div class="what">' + esc(next.what) + "</div>" +
+    (ndeal && ndeal.company_name ? '<div class="co">' + esc(ndeal.company_name) + "</div>" : "") +
     '<div class="why">' + esc(next.why) + '</div><div class="row">' +
     (next.taskId ? '<button class="pill-btn solid" data-done-task="' + next.taskId + '">Done ✓</button>' : "") +
     '<button class="pill-btn" data-log-deal="' + (next.dealId || "") + '">Log outcome</button>' +
@@ -324,13 +338,14 @@ function actionHTML() {
   h += '<div class="kicker-row"><h2>Tasks</h2><span class="hint">tap to complete</span></div>';
   if (S.tasksErr) h += offlineCard("exec-crm");
   else {
-    var od = overdueTasks(), dt = dueTodayTasks().filter(function (t) { return overdueTasks().indexOf(t) === -1; });
-    var rest = S.tasks.filter(function (t) { return !t.done && od.indexOf(t) === -1 && dt.indexOf(t) === -1; }).slice(0, 8);
+    var od = overdueTasks(), dt = dueTodayTasks().filter(function (t) { return od.indexOf(t) === -1; });
+    var rest = S.tasks.filter(function (t) { return !t.done && od.indexOf(t) === -1 && dt.indexOf(t) === -1; });
+    var openT = od.map(function (t) { return { t: t, od: true }; })
+      .concat(dt.map(function (t) { return { t: t, od: false }; }))
+      .concat(rest.map(function (t) { return { t: t, od: false }; }));
     var doneT = S.tasks.filter(function (t) { return t.done; }).slice(0, 5);
-    if (!od.length && !dt.length && !rest.length) h += '<p class="empty-note">No open tasks. Enjoy the quiet — or add one below.</p>';
-    h += od.map(function (t) { return taskRow(t, true); }).join("");
-    h += dt.map(function (t) { return taskRow(t, false); }).join("");
-    h += rest.map(function (t) { return taskRow(t, false); }).join("");
+    if (!openT.length) h += '<p class="empty-note">No open tasks. Enjoy the quiet — or add one below.</p>';
+    h += cappedList("tasks", openT, function (p) { return taskRow(p.t, p.od); });
     if (doneT.length) h += '<div class="kicker-row" style="margin-top:14px"><h2>Done</h2></div>' + doneT.map(function (t) { return taskRow(t, false); }).join("");
     h += '<form class="chat-form" id="quick-add" style="margin-top:10px"><input id="quick-add-in" type="text" placeholder="Add a task for today…" maxlength="200">' +
       '<button class="send-btn" type="submit" aria-label="Add task">+</button></form>';
@@ -347,9 +362,12 @@ function actionHTML() {
   else h += suggs.map(function (s, i) {
     var did = s.ref && s.ref.deal_id ? Number(s.ref.deal_id) : 0;
     var logged = did && touchedTodayDealIds()[did];
+    // Deal-less suggestions (e.g. the overdue-tasks card) get no Log button —
+    // there's no deal to log an outcome against.
+    var btn = did ? (logged ? '<span class="logged-chip">Logged ✓</span>'
+                            : '<button class="mini-btn" data-log-deal="' + did + '">Log</button>') : "";
     return '<div class="sugg-row' + (logged ? " logged" : "") + '"><span class="txt">' + esc(s.text) + "</span>" +
-      (logged ? '<span class="logged-chip">Logged ✓</span>'
-              : '<button class="mini-btn" data-log-deal="' + did + '">Log</button>') + "</div>";
+      btn + "</div>";
   }).join("");
 
   h += '<div style="height:16px"></div><button class="cta ghost-cta" data-act="to-outcome">Continue to outcome →</button>';
@@ -373,13 +391,13 @@ function nextUp() {
   for (var i = 0; i < acts.length; i++) {
     var r = acts[i].ref;
     if (r && r.deal_id) {
-      return { what: acts[i].text, why: "Milton's playbook flagged this as the highest-leverage touch.", dealId: r.deal_id, taskId: 0 };
+      return { what: acts[i].text, why: "Milton's playbook flagged this as the highest-leverage touch.", dealId: Number(r.deal_id) || 0, taskId: 0 };
     }
   }
   var od = overdueTasks();
-  if (od.length) return { what: od[0].title, why: "It's overdue — clearing it unblocks everything behind it.", dealId: od[0].deal_id || 0, taskId: od[0].id };
+  if (od.length) return { what: od[0].title, why: "It's overdue — clearing it unblocks everything behind it.", dealId: Number(od[0].deal_id) || 0, taskId: od[0].id };
   var dt = dueTodayTasks();
-  if (dt.length) return { what: dt[0].title, why: "Due today. Knock it out before it becomes overdue.", dealId: dt[0].deal_id || 0, taskId: dt[0].id };
+  if (dt.length) return { what: dt[0].title, why: "Due today. Knock it out before it becomes overdue.", dealId: Number(dt[0].deal_id) || 0, taskId: dt[0].id };
   if (acts.length) return { what: acts[0].text, why: "From Milton's playbook.", dealId: 0, taskId: 0 };
   return { what: "Pipeline is clear.", why: "Nothing overdue, nothing due. Pick a deal and move it forward.", dealId: 0, taskId: 0 };
 }
@@ -398,10 +416,10 @@ function outcomeHTML() {
   h += '<div class="card"><h3><span class="accent-o">✎</span> Log an outcome</h3>';
   h += '<div class="f-label">Deal</div><div class="deal-pick">';
   if (!open.length) h += '<p class="empty-note">No open deals to log against.</p>';
-  h += open.map(function (d) {
+  h += cappedList("deal-pick", open, function (d) {
     return '<button class="deal-opt' + (S.compose.dealId === d.id ? " on" : "") + '" data-pick-deal="' + d.id + '">' +
       "<span>" + esc(d.title) + "</span><span class=\"v\">" + esc(fmtMoney(d.value)) + "</span></button>";
-  }).join("") + "</div>";
+  }) + "</div>";
   h += '<div class="f-label">Channel</div><div class="chips">' +
     S.channels.map(function (c) {
       return '<button class="chip' + (S.compose.channel === c.value ? " on" : "") + '" data-pick-channel="' + esc(c.value) + '">' + esc(c.label) + "</button>";
@@ -423,13 +441,13 @@ function outcomeHTML() {
   });
   h += '<div class="card"><h3><span class="accent-o">◷</span> Today</h3>';
   if (!todays.length) h += '<p class="empty-note">Nothing logged yet today. The first outcome is the hardest.</p>';
-  h += todays.slice(0, 10).map(function (o) {
+  h += cappedList("timeline", todays, function (o) {
     var when = String(o.happened_at || o.created_at || "").slice(11, 16);
     return '<div class="tl-item"><span class="tl-dot"></span><div><div>' +
       (o.deal_title ? "<strong>" + esc(o.deal_title) + "</strong> · " : "") + esc(channelLabel(o.channel)) +
       (o.outcome ? ' <span class="oc">' + esc(o.outcome) + "</span>" : "") +
       (o.note ? "<div>" + esc(o.note) + "</div>" : "") + '</div><div class="t">' + esc(when) + "</div></div></div>";
-  }).join("") + "</div>";
+  }) + "</div>";
 
   // deal stepper
   h += '<div class="card"><h3><span class="accent-o">⇄</span> Move a deal</h3>';
@@ -586,6 +604,7 @@ function onTap(e) {
   else if (act === "save-settings") saveSettings();
   else if (act === "fresh-day") freshDay();
   else if (act === "log-outcome") logOutcome();
+  else if (act === "expand-list") { S.ui.expanded[t.getAttribute("data-list")] = true; render(); }
   else if (act === "wrap-day") wrapDay();
   else if (act === "finish-day") finishDay();
   else if (act === "to-outcome") go("outcome");
@@ -870,6 +889,7 @@ var RAO = {
   miltonCardHtml: miltonCardHtml, paintChips: paintChips,
   logOutcome: logOutcome, touchedTodayDealIds: touchedTodayDealIds,
   todayStr: todayStr, nowLocal: nowLocal, applyTheme: applyTheme,
+  cappedList: cappedList, LIST_CAP: LIST_CAP, dealById: dealById,
 };
 if (typeof window !== "undefined") window.RAO = RAO;
 if (typeof module !== "undefined" && module.exports) module.exports = RAO;

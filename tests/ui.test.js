@@ -271,4 +271,36 @@ ok(suggHtml.includes('data-send="/push all overdue tasks to next monday"'), "sug
 ok(suggHtml.includes("reschedule_tasks") && suggHtml.includes("Reschedule a task"), "suggestion buttons show name + description");
 ok(suggHtml.includes('data-send="/pause my morning schedule"'), "every suggestion item is tappable");
 
+// ---- cleanup batch 2026-09-25: list cap, suggests log button, hero company ----
+// 1) no list longer than 8 by default; "more" expands
+RAO.state.ui.expanded = {};
+var many = [];
+for (var i = 0; i < 12; i++) many.push("row-" + i);
+var capped = RAO.cappedList("test-list", many, function (r) { return "<i>" + r + "</i>"; });
+ok((capped.match(/<i>/g) || []).length === 8, "cappedList shows 8 rows by default");
+ok(capped.includes("more-btn") && capped.includes("Show 4 more"), "cappedList adds a more button with the remainder");
+ok(!capped.includes("row-8"), "cappedList hides rows past the cap");
+RAO.state.ui.expanded["test-list"] = true;
+var full = RAO.cappedList("test-list", many, function (r) { return "<i>" + r + "</i>"; });
+ok((full.match(/<i>/g) || []).length === 12 && !full.includes("more-btn"), "expanded list shows every row, no more button");
+var few = RAO.cappedList("short", ["a", "b"], function (r) { return "<i>" + r + "</i>"; });
+ok(!few.includes("more-btn"), "short lists get no more button");
+RAO.state.ui.expanded = {};
+
+// 2) overdue-tasks card in Milton suggests has no Log button
+fixture();
+RAO.state.hygiene.items.push({ icon: "⏰", text: "3 overdue tasks", kind: "overdue", phase: "action" });
+h = RAO.render.actionHTML();
+ok(!/overdue tasks<\/span><button class="mini-btn"/.test(h), "deal-less suggestion renders no Log button");
+ok(h.includes('data-log-deal="5"'), "deal suggestion keeps its Log button");
+ok(!h.includes('data-log-deal="0"'), "no suggestion carries a Log button for deal 0");
+
+// 3) next-up hero includes the company name
+fixture();
+RAO.state.deals[0].company_name = "Acme Corp";
+h = RAO.render.actionHTML();
+ok(h.includes("Acme Corp"), "hero shows the company name with the deal");
+ok(h.indexOf("Acme Corp") < h.indexOf("Milton&#39;s playbook") || h.indexOf("Acme Corp") < h.indexOf("Milton\u2019s playbook"), "company sits with the next-up card, above the why line");
+fixture();
+
 console.log("\nui: " + n + " passed");
