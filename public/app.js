@@ -796,20 +796,16 @@ function paintChips(chips) {
     return '<button class="mchip" data-send="' + esc(c) + '">' + esc(c) + "</button>";
   }).join("");
 }
-function pushMsg(role, text, cards) {
+function pushMsg(role, text, cards, extraHtml) {
   S.chat.push({ role: role, text: text, cards: cards || null });
   var log = $("chat-log"); if (!log) return;
   var div = document.createElement("div");
   div.className = "msg " + role;
-  div.innerHTML = md(text) + miltonCardsHtml(cards);
+  div.innerHTML = (extraHtml || "") + md(text) + miltonCardsHtml(cards);
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
 }
-function sendChat(text) {
-  text = String(text || "").trim();
-  if (!text) return;
-  if (!S.chatOpen) toggleSheet(true);
-  pushMsg("user", text);
+function postToMilton(text, attachments) {
   paintChips([]);
   var log = $("chat-log");
   var typing = document.createElement("div");
@@ -817,7 +813,7 @@ function sendChat(text) {
   log.appendChild(typing); log.scrollTop = log.scrollHeight;
   api("/api/milton/chat", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message: text }),
+    body: JSON.stringify({ message: text, attachments: attachments || [] }),
   }).then(function (res) {
     typing.remove();
     if (res.status === 200 && res.body.text) {
@@ -826,6 +822,40 @@ function sendChat(text) {
     }
     else pushMsg("milton", "Milton is unreachable right now — check Settings, then try again.");
   });
+}
+function sendChat(text) {
+  text = String(text || "").trim();
+  if (!text) return;
+  if (!S.chatOpen) toggleSheet(true);
+  pushMsg("user", text);
+  postToMilton(text, []);
+}
+/* Upload a photo or .vcf to Milton (same workspace-bound session the chat
+   uses), then let Milton's OCR / vCard import do its thing. */
+function uploadToMilton(file) {
+  var fd = new FormData();
+  fd.append("photo", file, file.name || "upload");
+  return fetch("/api/milton/upload", { method: "POST", body: fd }).then(function (r) {
+    return r.json().then(function (j) {
+      if (r.status === 200 && j.id) return j.id;
+      throw new Error((j && j.error) || ("upload failed (" + r.status + ")"));
+    });
+  });
+}
+function sendPhoto(file) {
+  if (file.size > 10 * 1024 * 1024) { toggleSheet(true); pushMsg("milton", "That photo is over the 10 MB limit — try a smaller one."); return; }
+  if (!S.chatOpen) toggleSheet(true);
+  var preview = URL.createObjectURL(file);
+  pushMsg("user", "📷", null, '<img class="chat-photo" src="' + esc(preview) + '" alt="photo sent to Milton">');
+  uploadToMilton(file).then(function (id) { postToMilton("", [id]); },
+    function (e) { pushMsg("milton", "Couldn't upload that photo (" + e.message + ") — is Milton reachable? Check Settings."); });
+}
+function sendVcf(file) {
+  if (file.size > 10 * 1024 * 1024) { toggleSheet(true); pushMsg("milton", "That file is over the 10 MB limit."); return; }
+  if (!S.chatOpen) toggleSheet(true);
+  pushMsg("user", "import these contacts", null, '<div class="chat-file">📇 ' + esc(file.name || "contacts.vcf") + "</div>");
+  uploadToMilton(file).then(function (id) { postToMilton("import these contacts", [id]); },
+    function (e) { pushMsg("milton", "Couldn't upload that file (" + e.message + ") — is Milton reachable? Check Settings."); });
 }
 
 /* ---------- boot ---------- */
@@ -847,6 +877,17 @@ function boot() {
       renderChatSeed();
   });
   $("milton-fab").addEventListener("click", function () { toggleSheet(); });
+  /* camera + vcf attach buttons in the Milton chat sheet */
+  $("chat-photo").addEventListener("click", function () { $("photo-input").click(); });
+  $("chat-vcf").addEventListener("click", function () { $("vcf-input").click(); });
+  $("photo-input").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (f) sendPhoto(f);
+  });
+  $("vcf-input").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (f) sendVcf(f);
+  });
   /* one delegated tap handler for the whole app — the topbar (settings gear)
      lives outside #view, so per-view binding never reached it. */
   document.addEventListener("click", onTap);

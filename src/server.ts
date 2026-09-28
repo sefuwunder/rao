@@ -120,8 +120,9 @@ export function createApp(dataDir?: string) {
     });
   }
 
-  // Milton chat with a server-side session bound to the workspace.
-  async function miltonChat(message: string): Promise<Response> {
+  // Milton session bound to the active workspace (shared by chat + uploads,
+  // so attachments land in the same session Milton's /api/chat reads).
+  async function miltonSid(): Promise<string | null> {
     const s = settings();
     const base = s.milton_url.replace(/\/$/, "");
     const w = wsId();
@@ -142,11 +143,49 @@ export function createApp(dataDir?: string) {
       } catch { /* fall through to direct chat */ }
       if (!sid) { sid = "rao-" + (w || "default"); set("milton_session", sid); set(wsKey, w); }
     }
+    return sid || null;
+  }
+
+  // Milton chat with a server-side session bound to the workspace.
+  async function miltonChat(message: string, attachments?: string[]): Promise<Response> {
+    const s = settings();
+    const base = s.milton_url.replace(/\/$/, "");
+    const sid = await miltonSid();
+    if (!sid) return json({ error: "milton unreachable", target: base }, 502);
     try {
       const r = await fetch(base + "/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ session: sid, message }),
+        body: JSON.stringify({ session: sid, message, attachments: attachments || [] }),
+      });
+      const text = await r.text();
+      return new Response(text, {
+        status: r.status,
+        headers: { "content-type": r.headers.get("content-type") || "application/json" },
+      });
+    } catch {
+      return json({ error: "milton unreachable", target: base }, 502);
+    }
+  }
+
+  // Camera / vcf upload proxy: forwards the multipart body to Milton's
+  // /api/upload under the same workspace-bound session the chat uses, so
+  // Milton's OCR and vCard import see the file. Nothing is stored here.
+  async function miltonUpload(req: Request): Promise<Response> {
+    const s = settings();
+    const base = s.milton_url.replace(/\/$/, "");
+    const sid = await miltonSid();
+    if (!sid) return json({ error: "milton unreachable", target: base }, 502);
+    const ctype = req.headers.get("content-type") || "";
+    if (!/multipart\/form-data/.test(ctype)) return json({ error: "expected multipart/form-data" }, 400);
+    let buf: ArrayBuffer;
+    try { buf = await req.arrayBuffer(); } catch { return json({ error: "unreadable body" }, 400); }
+    if (buf.byteLength > 11 * 1024 * 1024) return json({ error: "file too large (10 MB max)" }, 413);
+    try {
+      const r = await fetch(base + "/api/upload?session=" + encodeURIComponent(sid), {
+        method: "POST",
+        headers: { "content-type": ctype },
+        body: buf,
       });
       const text = await r.text();
       return new Response(text, {
@@ -254,11 +293,18 @@ export function createApp(dataDir?: string) {
     }
 
     if (path === "/api/milton/chat" && method === "POST") {
-      let b: { message?: string } = {};
+      let b: { message?: string; attachments?: string[] } = {};
       try { b = await req.json(); } catch { return json({ error: "invalid JSON" }, 400); }
       const message = String(b.message || "").slice(0, 2000).trim();
-      if (!message) return json({ error: "empty message" }, 400);
-      return miltonChat(message);
+      const attachments = Array.isArray(b.attachments)
+        ? b.attachments.map((a) => String(a).slice(0, 64)).slice(0, 4)
+        : [];
+      if (!message && !attachments.length) return json({ error: "empty message" }, 400);
+      return miltonChat(message, attachments);
+    }
+
+    if (path === "/api/milton/upload" && method === "POST") {
+      return miltonUpload(req);
     }
 
     if (path.startsWith("/api/crm/") && ["GET", "POST", "PATCH", "DELETE"].includes(method)) {

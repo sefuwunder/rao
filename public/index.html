@@ -35,9 +35,13 @@
     <div class="chat-log" id="chat-log"></div>
     <div class="chat-chips" id="chat-chips"></div>
     <form class="chat-form" id="chat-form">
+      <button class="icon-btn sm attach-btn" type="button" id="chat-photo" aria-label="Send a photo to Milton">📷</button>
+      <button class="icon-btn sm attach-btn" type="button" id="chat-vcf" aria-label="Import contacts from a vCard file">📇</button>
       <input id="chat-input" type="text" placeholder="Ask Milton anything…" autocomplete="off" maxlength="2000">
       <button class="send-btn" type="submit" aria-label="Send">↑</button>
     </form>
+    <input type="file" id="photo-input" accept="image/*" hidden>
+    <input type="file" id="vcf-input" accept=".vcf,text/vcard" hidden>
   </section>
 </div>
 <script src="app.js"></script>

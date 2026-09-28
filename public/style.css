@@ -465,6 +465,9 @@ textarea.note:focus, .text-in:focus { outline: none; border-color: var(--mint); 
   font-size: 20px; font-weight: 800; transition: transform .2s var(--spring);
 }
 .send-btn:active { transform: scale(.9); }
+.attach-btn { align-self: center; flex: none; }
+.chat-photo { display: block; max-width: 220px; max-height: 220px; border-radius: 10px; margin-bottom: 6px; }
+.chat-file { font-size: 13.5px; margin-bottom: 4px; }
 
 /* milton reply cards + quick-reply chips (mirrors exec-crm's dock) */
 .chat-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; align-items: flex-start; flex: none; }
