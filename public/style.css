@@ -397,6 +397,8 @@ textarea.note:focus, .text-in:focus { outline: none; border-color: var(--mint); 
   color: var(--txt); padding: 13px 14px; font-size: 14.5px; font-family: inherit;
 }
 .conn { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--dim); padding: 7px 2px; }
+/* money-loop follow-up suggestion: mint edge marks the loop mechanic */
+.card.followup { border-left: 3px solid var(--mint); }
 .conn .pip { width: 9px; height: 9px; border-radius: 50%; background: #666; flex: none; }
 .conn.ok .pip { background: var(--mint); box-shadow: 0 0 9px var(--mint); }
 .conn.bad .pip { background: var(--peach); box-shadow: 0 0 9px var(--peach); }

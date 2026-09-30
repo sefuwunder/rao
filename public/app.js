@@ -11,7 +11,17 @@ var REVIEW_STEPS = [
   { id: "scan", label: "Scan what needs your eyes" },
   { id: "intent", label: "Set today's intention" },
 ];
-var OUTCOMES = ["Connected", "No answer", "Follow-up set", "Advanced", "Won", "Lost"];
+/* Outcome catalog: each result carries its money-loop cycle action.
+   recycle -> suggest a follow-up task in N days; appointment -> ask for a
+   date; complete -> the loop ends, no follow-up. */
+var OUTCOMES = [
+  { label: "Connected", cycle: "recycle", days: 7 },
+  { label: "No answer", cycle: "recycle", days: 3 },
+  { label: "Follow-up set", cycle: "appointment", days: null },
+  { label: "Advanced", cycle: "recycle", days: 7 },
+  { label: "Won", cycle: "complete", days: null },
+  { label: "Lost", cycle: "complete", days: null },
+];
 
 var S = {
   settings: null, day: null, view: "review",
@@ -21,6 +31,7 @@ var S = {
   tasks: [], tasksErr: false,
   outreach: [], channels: [],
   compose: { dealId: null, channel: "call", outcome: "", note: "" },
+  followup: null, // pending money-loop follow-up suggestion after an outcome is logged
   chat: [], chatOpen: false,
   wrap: null,
   ui: { expanded: {} },
@@ -43,6 +54,20 @@ function todayStr() {
 function nowLocal() {
   var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
   return todayStr() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+/* Money-loop helpers: outcome catalog lookup + follow-up date math. */
+function outcomeDef(label) {
+  for (var i = 0; i < OUTCOMES.length; i++) if (OUTCOMES[i].label === label) return OUTCOMES[i];
+  return { label: label, cycle: "none", days: null };
+}
+function addDaysISO(n) {
+  var d = new Date(); d.setDate(d.getDate() + n);
+  var p = function (x) { return String(x).padStart(2, "0"); };
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function fmtDay(iso) {
+  var d = new Date(String(iso).slice(0, 10) + "T12:00:00");
+  return isNaN(d) ? String(iso).slice(0, 10) : d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 /* Theme: "auto" follows the OS via prefers-color-scheme (no data-theme attr);
    "light"/"dark" force it through data-theme on <html>. */
@@ -426,10 +451,26 @@ function outcomeHTML() {
     }).join("") + "</div>";
   h += '<div class="f-label">Result</div><div class="chips">' +
     OUTCOMES.map(function (o) {
-      return '<button class="chip' + (S.compose.outcome === o ? " on" : "") + '" data-pick-outcome="' + esc(o) + '">' + esc(o) + "</button>";
+      return '<button class="chip' + (S.compose.outcome === o.label ? " on" : "") + '" data-pick-outcome="' + esc(o.label) + '">' + esc(o.label) + "</button>";
     }).join("") + "</div>";
   h += '<textarea class="note" id="oc-note" placeholder="What happened? (optional)">' + esc(S.compose.note) + "</textarea>";
   h += '<button class="cta mint" data-act="log-outcome" style="margin-top:12px">Log it</button></div>';
+
+  // money-loop: every outcome schedules the next touch (suggest-and-confirm)
+  if (S.followup) {
+    var f = S.followup;
+    h += '<div class="card followup"><h3><span class="accent-o">↻</span> Keep the loop going</h3>';
+    if (f.cycle === "recycle") {
+      h += '<p class="greet-sub">"' + esc(f.outcome) + '" logged for <strong>' + esc(f.dealTitle) +
+        '</strong>. Follow up on <strong>' + esc(fmtDay(f.date)) + '</strong>?</p>';
+    } else {
+      h += '<p class="greet-sub">"' + esc(f.outcome) + '" logged for <strong>' + esc(f.dealTitle) +
+        '</strong>. When&rsquo;s the appointment?</p>' +
+        '<input type="date" id="fu-date" class="text-in" value="' + esc(f.date) + '" style="margin-top:8px">';
+    }
+    h += '<div style="display:flex;gap:8px;margin-top:12px"><button class="cta mint" data-act="followup-confirm">Schedule follow-up</button>' +
+      '<button class="ghost-btn" data-act="followup-dismiss">Dismiss</button></div></div>';
+  }
 
   h += '</div><div>';
 
@@ -604,6 +645,8 @@ function onTap(e) {
   else if (act === "save-settings") saveSettings();
   else if (act === "fresh-day") freshDay();
   else if (act === "log-outcome") logOutcome();
+  else if (act === "followup-confirm") confirmFollowup();
+  else if (act === "followup-dismiss") { S.followup = null; mount("outcome", true); }
   else if (act === "expand-list") { S.ui.expanded[t.getAttribute("data-list")] = true; render(); }
   else if (act === "wrap-day") wrapDay();
   else if (act === "finish-day") finishDay();
@@ -643,19 +686,55 @@ function logOutcome() {
   if (!S.compose.outcome) { toast("Pick a result first"); return; }
   var noteEl = document.querySelector("#oc-note");
   var note = noteEl ? noteEl.value : S.compose.note;
+  var dealId = S.compose.dealId, outcomeLabel = S.compose.outcome;
+  var def = outcomeDef(outcomeLabel);
   api("/api/crm/outreach", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      deal_id: S.compose.dealId, channel: S.compose.channel,
-      outcome: S.compose.outcome, note: note,
+      deal_id: dealId, channel: S.compose.channel,
+      outcome: outcomeLabel, note: note,
       happened_at: nowLocal(),
     }),
   }).then(function (res) {
     if (res.status === 200 || res.status === 201) {
       toast("Logged. Onward.");
+      // money-loop: every outcome schedules the next touch (suggest-and-confirm)
+      if (def.cycle === "recycle" || def.cycle === "appointment") {
+        var dealTitle = "this deal";
+        for (var i = 0; i < (S.deals || []).length; i++) {
+          if (S.deals[i].id === dealId) { dealTitle = S.deals[i].title; break; }
+        }
+        S.followup = {
+          dealId: dealId, dealTitle: dealTitle, outcome: outcomeLabel, cycle: def.cycle,
+          date: addDaysISO(def.cycle === "recycle" ? (def.days || 7) : 7),
+        };
+      } else {
+        S.followup = null;
+      }
       S.compose = { dealId: null, channel: S.channels.length ? S.channels[0].value : "call", outcome: "", note: "" };
       loadOutreach();
     } else toast("Couldn't log that");
+  });
+}
+function confirmFollowup() {
+  var f = S.followup;
+  if (!f) return;
+  var dateEl = document.querySelector("#fu-date");
+  var date = (dateEl && dateEl.value) ? dateEl.value : f.date;
+  api("/api/crm/tasks", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      title: "Follow up: " + f.dealTitle,
+      deal_id: f.dealId,
+      due_date: date,
+    }),
+  }).then(function (res) {
+    if (res.status === 201 || res.status === 200) {
+      toast("Follow-up scheduled for " + fmtDay(date));
+      S.followup = null;
+      loadTasks();
+      if (S.view === "outcome") mount("outcome", true);
+    } else toast("Couldn't schedule that");
   });
 }
 function wrapDay() {
